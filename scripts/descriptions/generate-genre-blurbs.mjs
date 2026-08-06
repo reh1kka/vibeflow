@@ -2,7 +2,7 @@
  * Build catalog blurbs from genre metadata (map, artists, related tags).
  * Keeps Wikipedia / hand-written seed / Last.fm entries intact.
  *
- * node scripts/descriptions/generate-genre-blurbs.mjs --force-generated
+ * node scripts/generate-genre-blurbs.mjs --force-generated
  */
 import { readFile, writeFile, mkdir, rename, unlink, copyFile } from 'node:fs/promises'
 import { existsSync } from 'node:fs'

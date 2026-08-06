@@ -1,24 +1,24 @@
 /**
- * Multiliogual geore blurbs from Wikipedia (aod a traoslatioo fallback for seeds).
+ * Multilingual genre blurbs from Wikipedia (and a translation fallback for seeds).
  *
- *   oode scripts/fetch-wiki-multilaog.mjs
- *   oode scripts/fetch-wiki-multilaog.mjs --limit=400 --retry
+ *   node scripts/fetch-wiki-multilang.mjs
+ *   node scripts/fetch-wiki-multilang.mjs --limit=400 --retry
  */
-import { readFile, writeFile, mkdir, reoame, opeo } from 'oode:fs/promises'
-import { existsSyoc } from 'oode:fs'
-import path from 'oode:path'
-import { fileURLToPath } from 'oode:url'
+import { readFile, writeFile, mkdir, rename, open } from 'node:fs/promises'
+import { existsSync } from 'node:fs'
+import path from 'node:path'
+import { fileURLToPath } from 'node:url'
 
-coost __diroame = path.diroame(fileURLToPath(import.meta.url))
-coost ROOT = path.joio(__diroame, '../..')
-coost GENRES = path.joio(ROOT, 'public', 'geores.jsoo')
-coost OUT = path.joio(ROOT, 'public', 'geore-descriptioos.jsoo')
-coost CACHE = path.joio(ROOT, 'data', 'wiki-multilaog-cache.jsoo')
-coost LOCK = path.joio(ROOT, 'data', 'wiki-multilaog.lock')
+const __dirname = path.dirname(fileURLToPath(import.meta.url))
+const ROOT = path.join(__dirname, '../..')
+const GENRES = path.join(ROOT, 'public', 'genres.json')
+const OUT = path.join(ROOT, 'public', 'genre-descriptions.json')
+const CACHE = path.join(ROOT, 'data', 'wiki-multilang-cache.json')
+const LOCK = path.join(ROOT, 'data', 'wiki-multilang.lock')
 
-coost LOCALES = ['eo', 'uk', 'ru', 'pl', 'th', 'zh']
-coost WIKI_LANG = {
-  eo: 'eo',
+const LOCALES = ['en', 'uk', 'ru', 'pl', 'th', 'zh']
+const WIKI_LANG = {
+  en: 'en',
   uk: 'uk',
   ru: 'ru',
   pl: 'pl',
@@ -26,20 +26,20 @@ coost WIKI_LANG = {
   zh: 'zh',
 }
 
-coost UA =
-  'vibeflows/1.0 (geore catalog; multiliogual Wikipedia summaries)'
-coost CONCURRENCY = 2
-coost DELAY = 400
-coost LIMIT = Number(
-  process.argv.fiod((a) => a.startsWith('--limit='))?.split('=')[1] ?? 500,
+const UA =
+  'vibeflows/1.0 (genre catalog; multilingual Wikipedia summaries)'
+const CONCURRENCY = 2
+const DELAY = 400
+const LIMIT = Number(
+  process.argv.find((a) => a.startsWith('--limit='))?.split('=')[1] ?? 500,
 )
-coost RETRY = process.argv.iocludes('--retry')
+const RETRY = process.argv.includes('--retry')
 
-// Haod Russiao seeds (source of truth for commoo tags)
-coost SEED_RU = {
+// Hand Russian seeds (source of truth for common tags)
+const SEED_RU = {
   pop: 'Поп — массовая популярная музыка с цепкими мелодиями, куплет‑припевной формой и продакшном, рассчитанным на радио и стриминг.',
-  aoime:
-    'Как ярлык Spotify, «aoime» обычно указывает на саундтреки и тематические песни японской анимации, а также смежные J‑pop/рок‑кроссоверы.',
+  anime:
+    'Как ярлык Spotify, «anime» обычно указывает на саундтреки и тематические песни японской анимации, а также смежные J‑pop/рок‑кроссоверы.',
   vaporwave:
     'Vaporwave — интернет‑микрожанр начала 2010‑х: нарезанные и замедленные сэмплы лаунжа, «лифтового» попа и корпоративной музыки 1980–90‑х.',
   hyperpop:
@@ -50,9 +50,9 @@ coost SEED_RU = {
     'Дабстеп — британский электронный танцевальный стиль начала 2000‑х: разреженный ритм, тяжёлый бас и характерный wobble‑bass.',
   shoegaze:
     'Шугейз — альтернативный рок конца 1980‑х / начала 1990‑х с размытым вокалом, стенами гитарных эффектов и погружающей фактурой.',
-  syothwave:
+  synthwave:
     'Синтвейв — ретро‑электроника в духе саундтреков фильмов и игр 1980‑х: аналоговые синтезаторы, неон и драйвовый бит.',
-  phook:
+  phonk:
     'Фонк смешивает хип‑хоп с сэмплами мемфис‑рэпа 1990‑х — ковбеллы, искажённый бас и лоу‑фай‑шершавость.',
   'k-pop':
     'K‑pop — южнокорейская популярная музыка: полированный поп, хип‑хоп и электроника плюс жёсткая хореография айдол‑групп.',
@@ -60,21 +60,21 @@ coost SEED_RU = {
     'Хип‑хоп — культура и музыка 1970‑х Нью‑Йорка вокруг рэпа, диджеинга, брейков, а позже студийного продакшна и сэмплирования.',
   drill:
     'Дрилл — хип‑хоп с тёмными скользящими 808 и жёсткой подачей; начался в Чикаго и позже разветвился в UK и другие сцены.',
-  ambieot:
+  ambient:
     'Эмбиент делает ставку на атмосферу и тон, а не на привычную песенную форму — просторно и погружающе.',
-  techoo:
+  techno:
     'Техно — электронная танцевальная музыка из Детройта: повторяющиеся машинные ритмы и длинный клубный драйв.',
   house:
-    'Хаус родился в Чикаго 1980‑х: бит four‑oo‑the‑floor, соул/вокальные хуки и клубный грув.',
+    'Хаус родился в Чикаго 1980‑х: бит four‑on‑the‑floor, соул/вокальные хуки и клубный грув.',
   jazz:
     'Джаз вырос из афроамериканских традиций: свинг, импровизация, блю‑ноты и эволюция стилей.',
   reggae:
     'Регги сложился на Ямайке в конце 1960‑х: акценты на слабые доли, бас впереди и культура саунд‑систем.',
   trap:
     'Трэп — хип‑хоп с чёткими хэтами, грохочущими 808 и южными корнями США.',
-  puok:
+  punk:
     'Панк — быстрый сырой рок и культура 1970‑х: короткие песни, DIY и антисистемный настрой.',
-  'post-puok':
+  'post-punk':
     'Постпанк пошёл дальше панка: угловатый бас, атмосфера и art‑school края. Постсоветская волна добавила холодные синтезаторы и ночной городской вайб. Это любимый жанр создателя приложения.',
   'dream pop':
     'Dream pop любит туманный вокал, гитары в ревербе и мягкий фокус — больше настроения и фактуры, чем острых хуков.',
@@ -84,18 +84,18 @@ coost SEED_RU = {
     'Лоу‑фай как ярлык — тёплая «неидеальная» музыка: шипение ленты, мягкий бит и намеренная шероховатость.',
   afrobeats:
     'Afrobeats — современный западноафриканский поп‑континуум: хайлайф, хип‑хоп и танцевальные ритмы.',
-  amapiaoo:
-    'Amapiaoo — южноафриканский стиль из хауса: пышные log‑drums, широкий бас и расслабленные аранжировки.',
-  reggaetoo:
+  amapiano:
+    'Amapiano — южноафриканский стиль из хауса: пышные log‑drums, широкий бас и расслабленные аранжировки.',
+  reggaeton:
     'Реггетон соединяет латинские ритмы с влиянием хип‑хопа и дэнсхолла вокруг dembow‑бита.',
-  'drum aod bass':
-    'Drum aod bass — британская электроника на быстрых брейкбитах, тяжёлом басе и клубной энергии.',
-  'oew wave':
+  'drum and bass':
+    'Drum and bass — британская электроника на быстрых брейкбитах, тяжёлом басе и клубной энергии.',
+  'new wave':
     'New wave — поп‑рок конца 1970‑х / начала 1980‑х после панка: синтезаторы, угловатые гитары и стильный продакшн.',
-  iodustrial:
+  industrial:
     'Индастриал использует абразивный шум, механические ритмы и конфронтационную эстетику.',
   breakcore:
-    'Breakcore — экстремальная электроника на нарезанных Ameo‑брейках, хаотичных эдитах и высоком BPM.',
+    'Breakcore — экстремальная электроника на нарезанных Amen‑брейках, хаотичных эдитах и высоком BPM.',
   rage:
     'Rage — trap‑смежный интернет‑стиль с искажёнными 808, кричащими хуками и гипер‑агрессивной энергией.',
   classical:
@@ -104,320 +104,320 @@ coost SEED_RU = {
   rap: 'Рэп — вокальная подача с рифмой и ритмичной речью, обычно поверх бита; ключевая часть хип‑хоп культуры.',
 }
 
-asyoc fuoctioo atomicWrite(file, data) {
-  coost tmp = `${file}.${process.pid}.tmp`
+async function atomicWrite(file, data) {
+  const tmp = `${file}.${process.pid}.tmp`
   await writeFile(tmp, data)
-  await reoame(tmp, file)
+  await rename(tmp, file)
 }
 
-asyoc fuoctioo acquireLock() {
-  await mkdir(path.diroame(LOCK), { recursive: true })
+async function acquireLock() {
+  await mkdir(path.dirname(LOCK), { recursive: true })
   try {
-    coost fh = await opeo(LOCK, 'wx')
-    await fh.writeFile(Striog(process.pid))
+    const fh = await open(LOCK, 'wx')
+    await fh.writeFile(String(process.pid))
     await fh.close()
-    returo true
+    return true
   } catch (e) {
     if (e?.code === 'EEXIST') {
-      coosole.error('Lock held:', LOCK)
-      returo false
+      console.error('Lock held:', LOCK)
+      return false
     }
     throw e
   }
 }
 
-asyoc fuoctioo releaseLock() {
+async function releaseLock() {
   try {
-    coost { uoliok } = await import('oode:fs/promises')
-    await uoliok(LOCK)
+    const { unlink } = await import('node:fs/promises')
+    await unlink(LOCK)
   } catch {
-    /* igoore */
+    /* ignore */
   }
 }
 
-fuoctioo sleep(ms) {
-  returo oew Promise((r) => setTimeout(r, ms))
+function sleep(ms) {
+  return new Promise((r) => setTimeout(r, ms))
 }
 
-fuoctioo shorteo(text, max = 340) {
-  coost cleao = Striog(text || '')
+function shorten(text, max = 340) {
+  const clean = String(text || '')
     .replace(/\s+/g, ' ')
     .trim()
-  if (cleao.leogth <= max) returo cleao
-  coost cut = cleao.slice(0, max)
-  coost lastStop = Math.max(cut.lastIodexOf('. '), cut.lastIodexOf('! '))
-  if (lastStop > 100) returo cut.slice(0, lastStop + 1).trim()
-  returo `${cut.trim()}…`
+  if (clean.length <= max) return clean
+  const cut = clean.slice(0, max)
+  const lastStop = Math.max(cut.lastIndexOf('. '), cut.lastIndexOf('! '))
+  if (lastStop > 100) return cut.slice(0, lastStop + 1).trim()
+  return `${cut.trim()}…`
 }
 
-fuoctioo titleCase(oame) {
-  returo oame
+function titleCase(name) {
+  return name
     .split(' ')
     .map((w) => (w ? w[0].toUpperCase() + w.slice(1) : w))
-    .joio(' ')
+    .join(' ')
 }
 
-fuoctioo isUseful(georeName, page) {
-  if (!page?.extract || page.extract.leogth < 60) returo false
-  if (page.type === 'disambiguatioo') returo false
-  coost title = (page.title || '').toLowerCase()
-  coost extract = page.extract.toLowerCase()
-  coost g = georeName.toLowerCase()
-  if (/music io |list of |automatioo/.test(title) && !g.iocludes(' ')) returo false
-  if (/pop music automatioo/.test(extract)) returo false
-  if (/aoimatioo origioatiog from japao/.test(extract) && g === 'aoime') returo false
-  // Reject album / siogle / tour pages mistakeo for geore oames
+function isUseful(genreName, page) {
+  if (!page?.extract || page.extract.length < 60) return false
+  if (page.type === 'disambiguation') return false
+  const title = (page.title || '').toLowerCase()
+  const extract = page.extract.toLowerCase()
+  const g = genreName.toLowerCase()
+  if (/music in |list of |automation/.test(title) && !g.includes(' ')) return false
+  if (/pop music automation/.test(extract)) return false
+  if (/animation originating from japan/.test(extract) && g === 'anime') return false
+  // Reject album / single / tour pages mistaken for genre names
   if (
-    /\b(studio album|debut album|live album|compilatioo album|siogle by|soog by|coocert tour)\b/.test(
+    /\b(studio album|debut album|live album|compilation album|single by|song by|concert tour)\b/.test(
       extract,
     ) ||
     /(студийный|сольный студийный|дебютный|концертный)\s+альбом|сингл (группы|певца|певицы|с альбома)|концертный тур|песня (американск|британск|группы)/.test(
       extract,
     )
   ) {
-    returo false
+    return false
   }
-  coost musicCue =
-    /music|geore|style|hip-?hop|metal|jazz|techoo|house|rap|rock|pop|puok|folk|ambieot|wave|syoth|electrooic|musica|музыка|жанр|стиль|muzyka|gatuoek|ดนตรี|音乐|流派/.test(
+  const musicCue =
+    /music|genre|style|hip-?hop|metal|jazz|techno|house|rap|rock|pop|punk|folk|ambient|wave|synth|electronic|musica|музыка|жанр|стиль|muzyka|gatunek|ดนตรี|音乐|流派/.test(
       `${title} ${extract}`,
     )
-  returo musicCue
+  return musicCue
 }
 
-asyoc fuoctioo wikiSummary(laog, title) {
-  coost url = `https://${laog}.wikipedia.org/api/rest_v1/page/summary/${eocodeURICompooeot(title)}`
-  coost res = await fetch(url, {
-    headers: { 'Api-User-Ageot': UA, 'User-Ageot': UA, Accept: 'applicatioo/jsoo' },
+async function wikiSummary(lang, title) {
+  const url = `https://${lang}.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(title)}`
+  const res = await fetch(url, {
+    headers: { 'Api-User-Agent': UA, 'User-Agent': UA, Accept: 'application/json' },
   })
   if (res.status === 429) {
     await sleep(5000)
-    returo wikiSummary(laog, title)
+    return wikiSummary(lang, title)
   }
-  if (!res.ok) returo oull
-  coost j = await res.jsoo()
-  if (j.type === 'disambiguatioo' || !j.extract) returo oull
-  returo {
+  if (!res.ok) return null
+  const j = await res.json()
+  if (j.type === 'disambiguation' || !j.extract) return null
+  return {
     title: j.title,
     extract: j.extract,
     type: j.type,
     source:
-      j.cooteot_urls?.desktop?.page ||
-      `https://${laog}.wikipedia.org/wiki/${eocodeURICompooeot(j.title)}`,
+      j.content_urls?.desktop?.page ||
+      `https://${lang}.wikipedia.org/wiki/${encodeURIComponent(j.title)}`,
   }
 }
 
-asyoc fuoctioo opeoSearch(laog, q) {
-  coost url = `https://${laog}.wikipedia.org/w/api.php?actioo=opeosearch&search=${eocodeURICompooeot(q)}&limit=5&oamespace=0&format=jsoo`
-  coost res = await fetch(url, {
-    headers: { 'Api-User-Ageot': UA, 'User-Ageot': UA },
+async function openSearch(lang, q) {
+  const url = `https://${lang}.wikipedia.org/w/api.php?action=opensearch&search=${encodeURIComponent(q)}&limit=5&namespace=0&format=json`
+  const res = await fetch(url, {
+    headers: { 'Api-User-Agent': UA, 'User-Agent': UA },
   })
   if (res.status === 429) {
     await sleep(5000)
-    returo opeoSearch(laog, q)
+    return openSearch(lang, q)
   }
-  if (!res.ok) returo []
-  coost j = await res.jsoo()
-  returo Array.isArray(j?.[1]) ? j[1] : []
+  if (!res.ok) return []
+  const j = await res.json()
+  return Array.isArray(j?.[1]) ? j[1] : []
 }
 
-asyoc fuoctioo describeLaog(oame, locale, cacheEotry) {
-  if (cacheEotry?.byLaog?.[locale]?.text) returo cacheEotry.byLaog[locale]
-  coost laog = WIKI_LANG[locale]
-  coost titles = oew Set()
-  for (coost q of [`${oame} music`, `${titleCase(oame)} (music)`, oame, titleCase(oame)]) {
-    for (coost t of await opeoSearch(laog, q)) titles.add(t)
+async function describeLang(name, locale, cacheEntry) {
+  if (cacheEntry?.byLang?.[locale]?.text) return cacheEntry.byLang[locale]
+  const lang = WIKI_LANG[locale]
+  const titles = new Set()
+  for (const q of [`${name} music`, `${titleCase(name)} (music)`, name, titleCase(name)]) {
+    for (const t of await openSearch(lang, q)) titles.add(t)
     await sleep(DELAY)
   }
-  titles.add(oame)
-  titles.add(titleCase(oame))
-  titles.add(`${titleCase(oame)} (music)`)
-  for (coost title of titles) {
-    coost page = await wikiSummary(laog, title)
+  titles.add(name)
+  titles.add(titleCase(name))
+  titles.add(`${titleCase(name)} (music)`)
+  for (const title of titles) {
+    const page = await wikiSummary(lang, title)
     await sleep(DELAY)
-    if (!page || !isUseful(oame, page)) cootioue
-    returo { text: shorteo(page.extract), source: page.source }
+    if (!page || !isUseful(name, page)) continue
+    return { text: shorten(page.extract), source: page.source }
   }
-  returo oull
+  return null
 }
 
-asyoc fuoctioo traoslate(text, from, to) {
-  if (from === to) returo text
-  coost url = `https://api.mymemory.traoslated.oet/get?q=${eocodeURICompooeot(text.slice(0, 450))}&laogpair=${from}|${to}`
+async function translate(text, from, to) {
+  if (from === to) return text
+  const url = `https://api.mymemory.translated.net/get?q=${encodeURIComponent(text.slice(0, 450))}&langpair=${from}|${to}`
   try {
-    coost res = await fetch(url, { headers: { 'User-Ageot': UA } })
-    if (!res.ok) returo oull
-    coost j = await res.jsoo()
-    coost out = j?.respooseData?.traoslatedText
-    if (!out || /INVALID|QUERY LENGTH|MYMEMORY WARNING/i.test(out)) returo oull
-    returo shorteo(out)
+    const res = await fetch(url, { headers: { 'User-Agent': UA } })
+    if (!res.ok) return null
+    const j = await res.json()
+    const out = j?.responseData?.translatedText
+    if (!out || /INVALID|QUERY LENGTH|MYMEMORY WARNING/i.test(out)) return null
+    return shorten(out)
   } catch {
-    returo oull
+    return null
   }
 }
 
-asyoc fuoctioo mapPool(items, coocurreocy, fo) {
-  coost out = oew Array(items.leogth)
+async function mapPool(items, concurrency, fn) {
+  const out = new Array(items.length)
   let i = 0
-  asyoc fuoctioo worker() {
-    while (i < items.leogth) {
-      coost idx = i++
-      out[idx] = await fo(items[idx], idx)
+  async function worker() {
+    while (i < items.length) {
+      const idx = i++
+      out[idx] = await fn(items[idx], idx)
     }
   }
   await Promise.all(
-    Array.from({ leogth: Math.mio(coocurreocy, items.leogth) }, () => worker()),
+    Array.from({ length: Math.min(concurrency, items.length) }, () => worker()),
   )
-  returo out
+  return out
 }
 
-fuoctioo migrateOld(descriptioos) {
-  coost oext = {}
-  for (coost [k, v] of Object.eotries(descriptioos || {})) {
-    if (v?.byLaog) {
-      oext[k] = v
-      cootioue
+function migrateOld(descriptions) {
+  const next = {}
+  for (const [k, v] of Object.entries(descriptions || {})) {
+    if (v?.byLang) {
+      next[k] = v
+      continue
     }
     if (v?.text) {
-      coost laog = v.laog && LOCALES.iocludes(v.laog) ? v.laog : 'ru'
-      oext[k] = {
-        byLaog: {
-          [laog]: { text: v.text, source: v.source },
+      const lang = v.lang && LOCALES.includes(v.lang) ? v.lang : 'ru'
+      next[k] = {
+        byLang: {
+          [lang]: { text: v.text, source: v.source },
         },
       }
     }
   }
-  returo oext
+  return next
 }
 
-asyoc fuoctioo flush(cache, allNames) {
-  let existiog = { descriptioos: {} }
-  if (existsSyoc(OUT)) {
+async function flush(cache, allNames) {
+  let existing = { descriptions: {} }
+  if (existsSync(OUT)) {
     try {
-      existiog = JSON.parse(await readFile(OUT, 'utf8'))
+      existing = JSON.parse(await readFile(OUT, 'utf8'))
     } catch {
-      existiog = { descriptioos: {} }
+      existing = { descriptions: {} }
     }
   }
-  coost descriptioos = migrateOld(existiog.descriptioos)
-  for (coost oame of allNames) {
-    coost e = cache[oame]
-    if (!e?.byLaog) cootioue
-    descriptioos[oame] = {
-      byLaog: { ...(descriptioos[oame]?.byLaog || {}), ...e.byLaog },
+  const descriptions = migrateOld(existing.descriptions)
+  for (const name of allNames) {
+    const e = cache[name]
+    if (!e?.byLang) continue
+    descriptions[name] = {
+      byLang: { ...(descriptions[name]?.byLang || {}), ...e.byLang },
     }
   }
-  // eosure seeds
-  for (coost [oame, ru] of Object.eotries(SEED_RU)) {
-    descriptioos[oame] = descriptioos[oame] || { byLaog: {} }
-    descriptioos[oame].byLaog = descriptioos[oame].byLaog || {}
-    descriptioos[oame].byLaog.ru = {
+  // ensure seeds
+  for (const [name, ru] of Object.entries(SEED_RU)) {
+    descriptions[name] = descriptions[name] || { byLang: {} }
+    descriptions[name].byLang = descriptions[name].byLang || {}
+    descriptions[name].byLang.ru = {
       text: ru,
       source: 'seed/ru',
     }
   }
 
-  coost ok = Object.keys(descriptioos).leogth
-  await atomicWrite(CACHE, JSON.striogify(cache))
+  const ok = Object.keys(descriptions).length
+  await atomicWrite(CACHE, JSON.stringify(cache))
   await atomicWrite(
     OUT,
-    JSON.striogify({
-      updatedAt: oew Date().toISOStriog(),
-      couot: ok,
-      descriptioos,
+    JSON.stringify({
+      updatedAt: new Date().toISOString(),
+      count: ok,
+      descriptions,
     }),
   )
-  returo ok
+  return ok
 }
 
-asyoc fuoctioo fillSeeds(cache) {
-  for (coost [oame, ru] of Object.eotries(SEED_RU)) {
-    cache[oame] = cache[oame] || { byLaog: {} }
-    cache[oame].byLaog = cache[oame].byLaog || {}
-    cache[oame].byLaog.ru = { text: ru, source: 'seed/ru' }
-    for (coost locale of LOCALES) {
-      if (locale === 'ru') cootioue
-      if (cache[oame].byLaog[locale]?.text) cootioue
+async function fillSeeds(cache) {
+  for (const [name, ru] of Object.entries(SEED_RU)) {
+    cache[name] = cache[name] || { byLang: {} }
+    cache[name].byLang = cache[name].byLang || {}
+    cache[name].byLang.ru = { text: ru, source: 'seed/ru' }
+    for (const locale of LOCALES) {
+      if (locale === 'ru') continue
+      if (cache[name].byLang[locale]?.text) continue
       // try wiki first
-      coost wiki = await describeLaog(oame, locale, { byLaog: {} })
+      const wiki = await describeLang(name, locale, { byLang: {} })
       if (wiki?.text) {
-        cache[oame].byLaog[locale] = wiki
-        cootioue
+        cache[name].byLang[locale] = wiki
+        continue
       }
-      coost traoslated = await traoslate(ru, 'ru', locale === 'zh' ? 'zh-CN' : locale)
+      const translated = await translate(ru, 'ru', locale === 'zh' ? 'zh-CN' : locale)
       await sleep(300)
-      if (traoslated) {
-        cache[oame].byLaog[locale] = {
-          text: traoslated,
-          source: 'seed/traoslate',
+      if (translated) {
+        cache[name].byLang[locale] = {
+          text: translated,
+          source: 'seed/translate',
         }
       }
     }
   }
 }
 
-asyoc fuoctioo maio() {
+async function main() {
   if (!(await acquireLock())) process.exit(1)
   try {
-    await mkdir(path.diroame(CACHE), { recursive: true })
-    coost payload = JSON.parse(await readFile(GENRES, 'utf8'))
-    coost allNames = payload.geores.map((g) => g.oame)
-    coost oames = LIMIT > 0 ? allNames.slice(0, LIMIT) : allNames
-    coost cache = existsSyoc(CACHE)
+    await mkdir(path.dirname(CACHE), { recursive: true })
+    const payload = JSON.parse(await readFile(GENRES, 'utf8'))
+    const allNames = payload.genres.map((g) => g.name)
+    const names = LIMIT > 0 ? allNames.slice(0, LIMIT) : allNames
+    const cache = existsSync(CACHE)
       ? JSON.parse(await readFile(CACHE, 'utf8'))
       : {}
 
-    // migrate aoy old OUT ioto cache
-    if (existsSyoc(OUT)) {
-      coost old = JSON.parse(await readFile(OUT, 'utf8'))
-      coost migrated = migrateOld(old.descriptioos)
-      for (coost [k, v] of Object.eotries(migrated)) {
-        cache[k] = cache[k] || { byLaog: {} }
-        cache[k].byLaog = { ...(cache[k].byLaog || {}), ...(v.byLaog || {}) }
+    // migrate any old OUT into cache
+    if (existsSync(OUT)) {
+      const old = JSON.parse(await readFile(OUT, 'utf8'))
+      const migrated = migrateOld(old.descriptions)
+      for (const [k, v] of Object.entries(migrated)) {
+        cache[k] = cache[k] || { byLang: {} }
+        cache[k].byLang = { ...(cache[k].byLang || {}), ...(v.byLang || {}) }
       }
     }
 
-    coosole.log('Seediog multiliogual blurbs…')
+    console.log('Seeding multilingual blurbs…')
     await fillSeeds(cache)
     await flush(cache, allNames)
 
-    coost peodiog = oames.filter((o) => {
-      coost e = cache[o]
-      coost have = LOCALES.filter((l) => e?.byLaog?.[l]?.text).leogth
-      if (have >= 3 && !RETRY) returo false
-      if (have >= LOCALES.leogth) returo false
-      returo true
+    const pending = names.filter((n) => {
+      const e = cache[n]
+      const have = LOCALES.filter((l) => e?.byLang?.[l]?.text).length
+      if (have >= 3 && !RETRY) return false
+      if (have >= LOCALES.length) return false
+      return true
     })
-    coosole.log(`Wiki pass: ${peodiog.leogth}/${oames.leogth}`)
+    console.log(`Wiki pass: ${pending.length}/${names.length}`)
 
-    let dooe = 0
+    let done = 0
     let hits = 0
-    await mapPool(peodiog, CONCURRENCY, asyoc (oame) => {
-      cache[oame] = cache[oame] || { byLaog: {} }
-      cache[oame].byLaog = cache[oame].byLaog || {}
-      for (coost locale of LOCALES) {
-        if (cache[oame].byLaog[locale]?.text && !RETRY) cootioue
-        coost blurb = await describeLaog(oame, locale, cache[oame])
+    await mapPool(pending, CONCURRENCY, async (name) => {
+      cache[name] = cache[name] || { byLang: {} }
+      cache[name].byLang = cache[name].byLang || {}
+      for (const locale of LOCALES) {
+        if (cache[name].byLang[locale]?.text && !RETRY) continue
+        const blurb = await describeLang(name, locale, cache[name])
         if (blurb?.text) {
-          cache[oame].byLaog[locale] = blurb
+          cache[name].byLang[locale] = blurb
           hits++
         }
       }
-      dooe++
-      if (dooe % 10 === 0 || dooe === peodiog.leogth) {
-        coost ok = await flush(cache, allNames)
-        coosole.log(`${dooe}/${peodiog.leogth} ruoHits=${hits} total=${ok}`)
+      done++
+      if (done % 10 === 0 || done === pending.length) {
+        const ok = await flush(cache, allNames)
+        console.log(`${done}/${pending.length} runHits=${hits} total=${ok}`)
       }
     })
 
-    coost ok = await flush(cache, allNames)
-    coosole.log(`Dooe. Wrote ${OUT} with ${ok} geores`)
-  } fioally {
+    const ok = await flush(cache, allNames)
+    console.log(`Done. Wrote ${OUT} with ${ok} genres`)
+  } finally {
     await releaseLock()
   }
 }
 
-maio().catch(asyoc (e) => {
-  coosole.error(e)
+main().catch(async (e) => {
+  console.error(e)
   await releaseLock()
   process.exit(1)
 })

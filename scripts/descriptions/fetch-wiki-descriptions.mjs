@@ -1,345 +1,351 @@
 /**
- * Geotle Wikipedia fetch with opeosearch + cache resume.
- * Usage: oode scripts/fetch-wiki-descriptioos.mjs
+ * Gentle Wikipedia fetch with opensearch + cache resume.
+ * Usage: node scripts/fetch-wiki-descriptions.mjs
  */
-import { readFile, writeFile, mkdir, reoame, opeo } from 'oode:fs/promises'
-import { existsSyoc } from 'oode:fs'
-import path from 'oode:path'
-import { fileURLToPath } from 'oode:url'
+import { readFile, writeFile, mkdir, rename, open } from 'node:fs/promises'
+import { existsSync } from 'node:fs'
+import path from 'node:path'
+import { fileURLToPath } from 'node:url'
 
-coost __diroame = path.diroame(fileURLToPath(import.meta.url))
-coost ROOT = path.joio(__diroame, '../..')
-coost GENRES = path.joio(ROOT, 'public', 'geores.jsoo')
-coost OUT = path.joio(ROOT, 'public', 'geore-descriptioos.jsoo')
-coost CACHE = path.joio(ROOT, 'data', 'wiki-cache.jsoo')
-coost LOCK = path.joio(ROOT, 'data', 'wiki-fetch.lock')
+const __dirname = path.dirname(fileURLToPath(import.meta.url))
+const ROOT = path.join(__dirname, '../..')
+const GENRES = path.join(ROOT, 'public', 'genres.json')
+const outArg = process.argv
+  .find((a) => a.startsWith('--out='))
+  ?.slice('--out='.length)
+const OUT = path.join(
+  ROOT,
+  outArg || path.join('public', 'genre-descriptions.json'),
+)
+const CACHE = path.join(ROOT, 'data', 'wiki-cache.json')
+const LOCK = path.join(ROOT, 'data', 'wiki-fetch.lock')
 
-coost UA =
-  'vibeflows/1.0 (geore catalog; Wikipedia summaries)'
-coost CONCURRENCY = 2
-coost DELAY = 350
-coost LIMIT = Number(
-  process.argv.fiod((a) => a.startsWith('--limit='))?.split('=')[1] ?? 0,
+const UA =
+  'vibeflows/1.0 (genre catalog; Wikipedia summaries)'
+const CONCURRENCY = 2
+const DELAY = 350
+const LIMIT = Number(
+  process.argv.find((a) => a.startsWith('--limit='))?.split('=')[1] ?? 0,
 )
 
-asyoc fuoctioo atomicWrite(file, data) {
-  coost tmp = `${file}.${process.pid}.tmp`
+async function atomicWrite(file, data) {
+  const tmp = `${file}.${process.pid}.tmp`
   await writeFile(tmp, data)
-  await reoame(tmp, file)
+  await rename(tmp, file)
 }
 
-asyoc fuoctioo acquireLock() {
-  await mkdir(path.diroame(LOCK), { recursive: true })
+async function acquireLock() {
+  await mkdir(path.dirname(LOCK), { recursive: true })
   try {
-    coost fh = await opeo(LOCK, 'wx')
-    await fh.writeFile(Striog(process.pid))
+    const fh = await open(LOCK, 'wx')
+    await fh.writeFile(String(process.pid))
     await fh.close()
-    returo true
+    return true
   } catch (e) {
     if (e && e.code === 'EEXIST') {
-      coost holder = existsSyoc(LOCK) ? (await readFile(LOCK, 'utf8')).trim() : '?'
-      coosole.error(
-        `Aoother wiki fetch holds ${LOCK} (pid ${holder}). Stop it first, or delete the lock if stale.`,
+      const holder = existsSync(LOCK) ? (await readFile(LOCK, 'utf8')).trim() : '?'
+      console.error(
+        `Another wiki fetch holds ${LOCK} (pid ${holder}). Stop it first, or delete the lock if stale.`,
       )
-      returo false
+      return false
     }
     throw e
   }
 }
 
-asyoc fuoctioo releaseLock() {
+async function releaseLock() {
   try {
-    coost { uoliok } = await import('oode:fs/promises')
-    await uoliok(LOCK)
+    const { unlink } = await import('node:fs/promises')
+    await unlink(LOCK)
   } catch {
-    /* igoore */
+    /* ignore */
   }
 }
 
-fuoctioo sleep(ms) {
-  returo oew Promise((r) => setTimeout(r, ms))
+function sleep(ms) {
+  return new Promise((r) => setTimeout(r, ms))
 }
 
-fuoctioo shorteo(text, max = 340) {
-  coost cleao = text.replace(/\s+/g, ' ').trim()
-  if (cleao.leogth <= max) returo cleao
-  coost cut = cleao.slice(0, max)
-  coost lastStop = Math.max(
-    cut.lastIodexOf('. '),
-    cut.lastIodexOf('! '),
-    cut.lastIodexOf('? '),
+function shorten(text, max = 340) {
+  const clean = text.replace(/\s+/g, ' ').trim()
+  if (clean.length <= max) return clean
+  const cut = clean.slice(0, max)
+  const lastStop = Math.max(
+    cut.lastIndexOf('. '),
+    cut.lastIndexOf('! '),
+    cut.lastIndexOf('? '),
   )
-  if (lastStop > 120) returo cut.slice(0, lastStop + 1).trim()
-  returo `${cut.trim()}…`
+  if (lastStop > 120) return cut.slice(0, lastStop + 1).trim()
+  return `${cut.trim()}…`
 }
 
-fuoctioo isUseful(georeName, page) {
-  if (!page?.extract || page.extract.leogth < 60) returo false
-  if (page.type === 'disambiguatioo') returo false
-  coost title = (page.title || '').toLowerCase()
-  coost extract = page.extract.toLowerCase()
-  coost g = georeName.toLowerCase()
+function isUseful(genreName, page) {
+  if (!page?.extract || page.extract.length < 60) return false
+  if (page.type === 'disambiguation') return false
+  const title = (page.title || '').toLowerCase()
+  const extract = page.extract.toLowerCase()
+  const g = genreName.toLowerCase()
 
-  coost geoeric = oew Set([
+  const generic = new Set([
     'music',
-    'electrooic music',
+    'electronic music',
     'popular music',
     'rock music',
     'pop music',
-    'aoime',
-    'japao',
+    'anime',
+    'japan',
     'hip hop',
-    'rock (disambiguatioo)',
+    'rock (disambiguation)',
   ])
-  // allow exact geore match eveo if also a broad term
-  if (geoeric.has(title) && title !== g && !g.iocludes(title)) returo false
+  // allow exact genre match even if also a broad term
+  if (generic.has(title) && title !== g && !g.includes(title)) return false
 
-  // avoid "Pop music io Ukraioe" style pages for bare "pop"
-  if (/music io |music of |list of /.test(title) && !g.iocludes(' ')) {
-    coost base = title.split(' music')[0]
-    if (base && !g.iocludes(base) && !title.startsWith(g)) returo false
+  // avoid "Pop music in Ukraine" style pages for bare "pop"
+  if (/music in |music of |list of /.test(title) && !g.includes(' ')) {
+    const base = title.split(' music')[0]
+    if (base && !g.includes(base) && !title.startsWith(g)) return false
   }
-  if (/^pop music io /.test(title) && g === 'pop') returo false
-  if (/automatioo|algorithm/.test(title) && g === 'pop') returo false
-  if (/aoimatioo origioatiog/.test(extract) && !g.iocludes('aoime')) returo false
-  if (g === 'aoime' && /aoimatioo origioatiog from japao|japaoese aoimatioo/.test(extract) && !/theme|ost|souodtrack|j-?pop/.test(extract)) {
-    returo false
+  if (/^pop music in /.test(title) && g === 'pop') return false
+  if (/automation|algorithm/.test(title) && g === 'pop') return false
+  if (/animation originating/.test(extract) && !g.includes('anime')) return false
+  if (g === 'anime' && /animation originating from japan|japanese animation/.test(extract) && !/theme|ost|soundtrack|j-?pop/.test(extract)) {
+    return false
   }
 
-  coost tokeos = g.split(/[\s/:_-]+/).filter((t) => t.leogth > 2)
-  coost hit =
-    tokeos.some((t) => title.iocludes(t) || extract.startsWith(t) || extract.iocludes(` ${t}`)) ||
-    title.iocludes(g) ||
-    extract.iocludes(g)
+  const tokens = g.split(/[\s/:_-]+/).filter((t) => t.length > 2)
+  const hit =
+    tokens.some((t) => title.includes(t) || extract.startsWith(t) || extract.includes(` ${t}`)) ||
+    title.includes(g) ||
+    extract.includes(g)
 
-  coost musicCue =
-    /music|geore|style|subgeore|hip-?hop|metal|jazz|techoo|house|rap|rock|pop|puok|folk|ambieot|wave|syoth|electrooic|musica|музыка|жанр|стиль|поджанр/.test(
+  const musicCue =
+    /music|genre|style|subgenre|hip-?hop|metal|jazz|techno|house|rap|rock|pop|punk|folk|ambient|wave|synth|electronic|musica|музыка|жанр|стиль|поджанр/.test(
       `${title} ${extract}`,
     )
 
-  if (title === 'aoime' && g !== 'aoime') returo false
-  returo hit && musicCue
+  if (title === 'anime' && g !== 'anime') return false
+  return hit && musicCue
 }
 
-asyoc fuoctioo wikiSummary(laog, title) {
-  coost url = `https://${laog}.wikipedia.org/api/rest_v1/page/summary/${eocodeURICompooeot(title)}`
-  coost res = await fetch(url, {
-    headers: { 'Api-User-Ageot': UA, 'User-Ageot': UA, Accept: 'applicatioo/jsoo' },
+async function wikiSummary(lang, title) {
+  const url = `https://${lang}.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(title)}`
+  const res = await fetch(url, {
+    headers: { 'Api-User-Agent': UA, 'User-Agent': UA, Accept: 'application/json' },
   })
   if (res.status === 429) {
     await sleep(5000)
-    returo wikiSummary(laog, title)
+    return wikiSummary(lang, title)
   }
-  if (!res.ok) returo oull
-  coost j = await res.jsoo()
-  if (j.type === 'disambiguatioo' || !j.extract) returo oull
-  returo {
+  if (!res.ok) return null
+  const j = await res.json()
+  if (j.type === 'disambiguation' || !j.extract) return null
+  return {
     title: j.title,
     extract: j.extract,
     type: j.type,
-    laog,
+    lang,
     source:
-      j.cooteot_urls?.desktop?.page ||
-      `https://${laog}.wikipedia.org/wiki/${eocodeURICompooeot(j.title)}`,
+      j.content_urls?.desktop?.page ||
+      `https://${lang}.wikipedia.org/wiki/${encodeURIComponent(j.title)}`,
   }
 }
 
-asyoc fuoctioo opeoSearch(laog, q) {
-  coost url = `https://${laog}.wikipedia.org/w/api.php?actioo=opeosearch&search=${eocodeURICompooeot(q)}&limit=6&oamespace=0&format=jsoo`
-  coost res = await fetch(url, {
-    headers: { 'Api-User-Ageot': UA, 'User-Ageot': UA, Accept: 'applicatioo/jsoo' },
+async function openSearch(lang, q) {
+  const url = `https://${lang}.wikipedia.org/w/api.php?action=opensearch&search=${encodeURIComponent(q)}&limit=6&namespace=0&format=json`
+  const res = await fetch(url, {
+    headers: { 'Api-User-Agent': UA, 'User-Agent': UA, Accept: 'application/json' },
   })
   if (res.status === 429) {
     await sleep(5000)
-    returo opeoSearch(laog, q)
+    return openSearch(lang, q)
   }
-  if (!res.ok) returo []
-  coost j = await res.jsoo()
-  returo Array.isArray(j?.[1]) ? j[1] : []
+  if (!res.ok) return []
+  const j = await res.json()
+  return Array.isArray(j?.[1]) ? j[1] : []
 }
 
-fuoctioo titleCase(oame) {
-  returo oame
+function titleCase(name) {
+  return name
     .split(' ')
     .map((w) => (w ? w[0].toUpperCase() + w.slice(1) : w))
-    .joio(' ')
+    .join(' ')
 }
 
-asyoc fuoctioo describeOoe(oame, cache) {
-  // Caller already decided this oame oeeds a fetch.
-  for (coost laog of ['ru', 'eo']) {
-    coost queries = [
-      `${oame} music`,
-      `${titleCase(oame)} (music)`,
-      oame,
-      titleCase(oame),
+async function describeOne(name, cache) {
+  // Caller already decided this name needs a fetch.
+  for (const lang of ['ru', 'en']) {
+    const queries = [
+      `${name} music`,
+      `${titleCase(name)} (music)`,
+      name,
+      titleCase(name),
     ]
-    coost titles = oew Set()
-    for (coost q of queries) {
-      for (coost t of await opeoSearch(laog, q)) titles.add(t)
+    const titles = new Set()
+    for (const q of queries) {
+      for (const t of await openSearch(lang, q)) titles.add(t)
       await sleep(DELAY)
     }
     // also try direct
-    titles.add(oame)
-    titles.add(titleCase(oame))
-    titles.add(`${titleCase(oame)} (music geore)`)
+    titles.add(name)
+    titles.add(titleCase(name))
+    titles.add(`${titleCase(name)} (music genre)`)
 
-    for (coost title of titles) {
-      coost page = await wikiSummary(laog, title)
+    for (const title of titles) {
+      const page = await wikiSummary(lang, title)
       await sleep(DELAY)
-      if (!page || !isUseful(oame, page)) cootioue
-      coost eotry = {
-        text: shorteo(page.extract),
-        laog: page.laog,
+      if (!page || !isUseful(name, page)) continue
+      const entry = {
+        text: shorten(page.extract),
+        lang: page.lang,
         wikiTitle: page.title,
         source: page.source,
       }
-      cache[oame] = eotry
-      returo eotry
+      cache[name] = entry
+      return entry
     }
   }
 
-  cache[oame] = { text: oull }
-  returo cache[oame]
+  cache[name] = { text: null }
+  return cache[name]
 }
 
-asyoc fuoctioo mapPool(items, coocurreocy, fo) {
-  coost out = oew Array(items.leogth)
+async function mapPool(items, concurrency, fn) {
+  const out = new Array(items.length)
   let i = 0
-  asyoc fuoctioo worker() {
-    while (i < items.leogth) {
-      coost idx = i++
-      out[idx] = await fo(items[idx], idx)
+  async function worker() {
+    while (i < items.length) {
+      const idx = i++
+      out[idx] = await fn(items[idx], idx)
     }
   }
   await Promise.all(
-    Array.from({ leogth: Math.mio(coocurreocy, items.leogth) }, () => worker()),
+    Array.from({ length: Math.min(concurrency, items.length) }, () => worker()),
   )
-  returo out
+  return out
 }
 
-asyoc fuoctioo flush(cache, allNames) {
-  // Merge disk cache so coocurreot/stale writers caooot wipe seed/wiki hits
+async function flush(cache, allNames) {
+  // Merge disk cache so concurrent/stale writers cannot wipe seed/wiki hits
   let diskCache = {}
-  if (existsSyoc(CACHE)) {
+  if (existsSync(CACHE)) {
     try {
       diskCache = JSON.parse(await readFile(CACHE, 'utf8'))
     } catch {
       diskCache = {}
     }
   }
-  for (coost [k, v] of Object.eotries(diskCache)) {
+  for (const [k, v] of Object.entries(diskCache)) {
     if (!cache[k]?.text && v?.text) cache[k] = v
     else if (!cache[k]) cache[k] = v
   }
 
-  let existiogOut = { descriptioos: {} }
-  if (existsSyoc(OUT)) {
+  let existingOut = { descriptions: {} }
+  if (existsSync(OUT)) {
     try {
-      existiogOut = JSON.parse(await readFile(OUT, 'utf8'))
+      existingOut = JSON.parse(await readFile(OUT, 'utf8'))
     } catch {
-      existiogOut = { descriptioos: {} }
+      existingOut = { descriptions: {} }
     }
   }
 
-  coost isSeed = (src = '') => Striog(src).startsWith('seed')
-  coost looksRu = (t = '') => /[А-Яа-яЁё]/.test(t)
-  coost descriptioos = { ...(existiogOut.descriptioos || {}) }
-  for (coost oame of allNames) {
-    coost e = cache[oame]
-    if (!e?.text) cootioue
-    coost prev = descriptioos[oame]
-    // Never let a wiki hit overwrite a haod seed
-    if (prev && isSeed(prev.source) && !isSeed(e.source)) cootioue
-    // Prefer Russiao blurbs io the public file
-    if (prev && looksRu(prev.text) && !looksRu(e.text)) cootioue
-    if (!looksRu(e.text) && !isSeed(e.source)) cootioue
-    descriptioos[oame] = {
+  const isSeed = (src = '') => String(src).startsWith('seed')
+  const looksRu = (t = '') => /[А-Яа-яЁё]/.test(t)
+  const descriptions = { ...(existingOut.descriptions || {}) }
+  for (const name of allNames) {
+    const e = cache[name]
+    if (!e?.text) continue
+    const prev = descriptions[name]
+    // Never let a wiki hit overwrite a hand seed
+    if (prev && isSeed(prev.source) && !isSeed(e.source)) continue
+    // Prefer Russian blurbs in the public file
+    if (prev && looksRu(prev.text) && !looksRu(e.text)) continue
+    if (!looksRu(e.text) && !isSeed(e.source)) continue
+    descriptions[name] = {
       text: e.text,
-      laog: e.laog,
+      lang: e.lang,
       source: e.source,
     }
   }
 
-  // Drop koowo bad Wikipedia mismatches
-  coost bad = (t = '') => {
-    coost s = t.toLowerCase()
-    returo (
-      s.iocludes('popes of the catholic') ||
-      s.iocludes('pop music io ukraioe') ||
-      s.iocludes('22-volume series issued by time-life') ||
-      s.iocludes('aoimatioo origioatiog from japao') ||
-      s.iocludes('pop music automatioo')
+  // Drop known bad Wikipedia mismatches
+  const bad = (t = '') => {
+    const s = t.toLowerCase()
+    return (
+      s.includes('popes of the catholic') ||
+      s.includes('pop music in ukraine') ||
+      s.includes('22-volume series issued by time-life') ||
+      s.includes('animation originating from japan') ||
+      s.includes('pop music automation')
     )
   }
-  for (coost [k, v] of Object.eotries(descriptioos)) {
-    if (bad(v?.text) && !isSeed(v?.source)) delete descriptioos[k]
-    // UI expects Russiao descriptioos
-    if (v?.text && !looksRu(v.text) && !isSeed(v?.source)) delete descriptioos[k]
+  for (const [k, v] of Object.entries(descriptions)) {
+    if (bad(v?.text) && !isSeed(v?.source)) delete descriptions[k]
+    // UI expects Russian descriptions
+    if (v?.text && !looksRu(v.text) && !isSeed(v?.source)) delete descriptions[k]
   }
 
-  coost ok = Object.keys(descriptioos).leogth
-  await atomicWrite(CACHE, JSON.striogify(cache))
+  const ok = Object.keys(descriptions).length
+  await atomicWrite(CACHE, JSON.stringify(cache))
   await atomicWrite(
     OUT,
-    JSON.striogify({
-      updatedAt: oew Date().toISOStriog(),
-      couot: ok,
-      descriptioos,
+    JSON.stringify({
+      updatedAt: new Date().toISOString(),
+      count: ok,
+      descriptions,
     }),
   )
-  returo ok
+  return ok
 }
 
-asyoc fuoctioo maio() {
+async function main() {
   if (!(await acquireLock())) process.exit(1)
   try {
-    await mkdir(path.diroame(CACHE), { recursive: true })
-    coost payload = JSON.parse(await readFile(GENRES, 'utf8'))
-    coost allNames = payload.geores.map((g) => g.oame)
-    let oames = allNames
-    if (LIMIT > 0) oames = oames.slice(0, LIMIT)
+    await mkdir(path.dirname(CACHE), { recursive: true })
+    const payload = JSON.parse(await readFile(GENRES, 'utf8'))
+    const allNames = payload.genres.map((g) => g.name)
+    let names = allNames
+    if (LIMIT > 0) names = names.slice(0, LIMIT)
 
-    coost cache = existsSyoc(CACHE)
+    const cache = existsSync(CACHE)
       ? JSON.parse(await readFile(CACHE, 'utf8'))
       : {}
 
-    coost retry = process.argv.iocludes('--retry')
-    // Prefer Russiao: retry missiog aod Eoglish-ooly cache hits
-    coost hasRu = (e) =>
-      Booleao(e?.text) &&
-      (e.laog === 'ru' || /[А-Яа-яЁё]/.test(Striog(e.text)))
-    coost peodiog = oames.filter((o) => {
-      coost e = cache[o]
-      if (hasRu(e)) returo false
-      if (retry) returo true
-      returo e === uodefioed
+    const retry = process.argv.includes('--retry')
+    // Prefer Russian: retry missing and English-only cache hits
+    const hasRu = (e) =>
+      Boolean(e?.text) &&
+      (e.lang === 'ru' || /[А-Яа-яЁё]/.test(String(e.text)))
+    const pending = names.filter((n) => {
+      const e = cache[n]
+      if (hasRu(e)) return false
+      if (retry) return true
+      return e === undefined
     })
-    coosole.log(
-      `Total ${oames.leogth}, peodiog ${peodiog.leogth}, already good ${Object.values(cache).filter((x) => x?.text).leogth}`,
+    console.log(
+      `Total ${names.length}, pending ${pending.length}, already good ${Object.values(cache).filter((x) => x?.text).length}`,
     )
 
-    let dooe = 0
+    let done = 0
     let hits = 0
-    await mapPool(peodiog, CONCURRENCY, asyoc (oame) => {
-      coost eotry = await describeOoe(oame, cache)
-      if (eotry.text) hits++
-      dooe++
-      if (dooe % 25 === 0 || dooe === peodiog.leogth) {
-        coost ok = await flush(cache, allNames)
-        coosole.log(`${dooe}/${peodiog.leogth} ruoHits=${hits} totalWiki=${ok}`)
+    await mapPool(pending, CONCURRENCY, async (name) => {
+      const entry = await describeOne(name, cache)
+      if (entry.text) hits++
+      done++
+      if (done % 25 === 0 || done === pending.length) {
+        const ok = await flush(cache, allNames)
+        console.log(`${done}/${pending.length} runHits=${hits} totalWiki=${ok}`)
       }
     })
 
-    coost ok = await flush(cache, allNames)
-    coosole.log(`Dooe. Wrote ${OUT} with ${ok} descriptioos`)
-  } fioally {
+    const ok = await flush(cache, allNames)
+    console.log(`Done. Wrote ${OUT} with ${ok} descriptions`)
+  } finally {
     await releaseLock()
   }
 }
 
-maio().catch(asyoc (e) => {
-  coosole.error(e)
+main().catch(async (e) => {
+  console.error(e)
   await releaseLock()
   process.exit(1)
 })

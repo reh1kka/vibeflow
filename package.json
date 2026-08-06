@@ -15,6 +15,7 @@
     "wiki:seed": "node scripts/descriptions/seed-ru.mjs",
     "wiki:i18n": "node scripts/descriptions/fetch-wiki-multilang.mjs --limit=400",
     "wiki:all": "node scripts/descriptions/fetch-all-descriptions.mjs",
+    "wiki:collect": "node scripts/descriptions/fetch-all-descriptions.mjs --wiki-only --out=content/genre-descriptions.json",
     "wiki:gen": "node scripts/descriptions/generate-genre-blurbs.mjs --force-generated",
     "wiki:gen:all": "node scripts/descriptions/generate-genre-blurbs.mjs --force-generated && node scripts/descriptions/generate-secondary-blurbs.mjs --force-generated"
   },

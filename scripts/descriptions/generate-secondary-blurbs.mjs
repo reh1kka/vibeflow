@@ -2,8 +2,8 @@
  * Localized catalog blurbs for secondary UI languages.
  * Does not replace Wikipedia or seed texts already stored for a locale.
  *
- * node scripts/descriptions/generate-secondary-blurbs.mjs
- * node scripts/descriptions/generate-secondary-blurbs.mjs --force-generated
+ * node scripts/generate-secondary-blurbs.mjs
+ * node scripts/generate-secondary-blurbs.mjs --force-generated
  */
 import { readFile, writeFile, mkdir, rename, unlink, copyFile } from 'node:fs/promises'
 import { existsSync } from 'node:fs'
