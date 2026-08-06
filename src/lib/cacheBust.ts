@@ -4,7 +4,7 @@
  * settings, Spotify session) — only asset caches and service workers.
  */
 
-export const APP_CACHE_BUST = 'vf-2026-08-06-r2'
+export const APP_CACHE_BUST = 'vf-2026-08-06-r3'
 
 const STORAGE_KEY = 'vf-cache-bust'
 

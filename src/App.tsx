@@ -46,6 +46,7 @@ import { InstallGuide } from './components/InstallGuide'
 import { TasteOnboarding } from './components/TasteOnboarding'
 import { I18nProvider, useI18n, type Locale } from './i18n'
 import { stopPreviewAudio } from './lib/previewAudio'
+import brandLogo from './assets/logo.png'
 import './styles/App.css'
 
 type SimPayload = {
@@ -479,7 +480,7 @@ function AppInner() {
             aria-label={t('homeAria')}
           >
             <img
-              src="/logo.png?v=7"
+              src={brandLogo}
               alt=""
               className="brand-logo"
               draggable={false}
