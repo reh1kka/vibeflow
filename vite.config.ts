@@ -46,6 +46,9 @@ export default defineConfig({
         ],
       },
       workbox: {
+        cleanupOutdatedCaches: true,
+        skipWaiting: true,
+        clientsClaim: true,
         globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
         maximumFileSizeToCacheInBytes: 4 * 1024 * 1024,
         runtimeCaching: [
@@ -54,14 +57,14 @@ export default defineConfig({
             urlPattern: /\/genres\.json/,
             handler: 'NetworkOnly',
             options: {
-              cacheName: 'genres-data-v4',
+              cacheName: 'genres-data-v5',
             },
           },
           {
             urlPattern: /\/genre-overrides\.json/,
             handler: 'StaleWhileRevalidate',
             options: {
-              cacheName: 'genre-overrides-v2',
+              cacheName: 'genre-overrides-v3',
               cacheableResponse: {
                 statuses: [200],
               },
@@ -71,14 +74,14 @@ export default defineConfig({
             urlPattern: /\/similarity\.json$/,
             handler: 'NetworkOnly',
             options: {
-              cacheName: 'similarity-data-v2',
+              cacheName: 'similarity-data-v3',
             },
           },
           {
             urlPattern: /\/genre-descriptions\.json$/,
             handler: 'StaleWhileRevalidate',
             options: {
-              cacheName: 'genre-descriptions-v2',
+              cacheName: 'genre-descriptions-v3',
               cacheableResponse: {
                 statuses: [200],
               },

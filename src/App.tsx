@@ -479,7 +479,7 @@ function AppInner() {
             aria-label={t('homeAria')}
           >
             <img
-              src="/logo.png?v=6"
+              src="/logo.png?v=7"
               alt=""
               className="brand-logo"
               draggable={false}
