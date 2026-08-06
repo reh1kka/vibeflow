@@ -1,0 +1,71 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "redirects": [
+    {
+      "source": "/",
+      "has": [{ "type": "host", "value": "vibeflowe.vercel.app" }],
+      "destination": "https://vibe-flows.vercel.app/",
+      "permanent": true
+    },
+    {
+      "source": "/:path+",
+      "has": [{ "type": "host", "value": "vibeflowe.vercel.app" }],
+      "destination": "https://vibe-flows.vercel.app/:path+",
+      "permanent": true
+    },
+    {
+      "source": "/",
+      "has": [{ "type": "host", "value": "vibeflows-app.vercel.app" }],
+      "destination": "https://vibe-flows.vercel.app/",
+      "permanent": true
+    },
+    {
+      "source": "/:path+",
+      "has": [{ "type": "host", "value": "vibeflows-app.vercel.app" }],
+      "destination": "https://vibe-flows.vercel.app/:path+",
+      "permanent": true
+    },
+    {
+      "source": "/",
+      "has": [{ "type": "host", "value": "vibeflowapp.vercel.app" }],
+      "destination": "https://vibe-flows.vercel.app/",
+      "permanent": true
+    },
+    {
+      "source": "/:path+",
+      "has": [{ "type": "host", "value": "vibeflowapp.vercel.app" }],
+      "destination": "https://vibe-flows.vercel.app/:path+",
+      "permanent": true
+    },
+    {
+      "source": "/",
+      "has": [{ "type": "host", "value": "vibeflowsapp.vercel.app" }],
+      "destination": "https://vibe-flows.vercel.app/",
+      "permanent": true
+    },
+    {
+      "source": "/:path+",
+      "has": [{ "type": "host", "value": "vibeflowsapp.vercel.app" }],
+      "destination": "https://vibe-flows.vercel.app/:path+",
+      "permanent": true
+    },
+    {
+      "source": "/",
+      "has": [{ "type": "host", "value": "vibeflowsweb.vercel.app" }],
+      "destination": "https://vibe-flows.vercel.app/",
+      "permanent": true
+    },
+    {
+      "source": "/:path+",
+      "has": [{ "type": "host", "value": "vibeflowsweb.vercel.app" }],
+      "destination": "https://vibe-flows.vercel.app/:path+",
+      "permanent": true
+    }
+  ],
+  "rewrites": [
+    {
+      "source": "/((?!api/|.*\\.(?:json|js|css|png|svg|ico|webmanifest|woff2)$).*)",
+      "destination": "/index.html"
+    }
+  ]
+}
