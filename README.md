@@ -17,12 +17,14 @@ Catalog data is already in `public/`. Re-scraping is optional.
 ## Spotify (optional)
 
 1. Create an app in the [Spotify Developer Dashboard](https://developer.spotify.com/dashboard)
-2. Redirect URI: `http://localhost:5173/`
-3. Fill `.env`:
+2. Add these **Redirect URIs** exactly (trailing slash matters):
+   - `https://vibe-flows.vercel.app/`
+   - `http://localhost:5173/`
+3. Fill `.env` / Vercel env:
    - `SPOTIFY_CLIENT_ID`
    - `SPOTIFY_CLIENT_SECRET`
    - `VITE_SPOTIFY_CLIENT_ID` (same Client ID)
-4. Restart `npm run dev` → Settings → Log in with Spotify
+4. Restart `npm run dev` / redeploy → Settings → Log in with Spotify
 
 Without keys, browsing and swipes still work.
 

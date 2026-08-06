@@ -1,3 +1,5 @@
+import { PRIMARY_HOST } from './canonicalHost'
+
 const AUTH_KEY = 'weirdnoise-spotify-auth-v1'
 const VERIFIER_KEY = 'weirdnoise-spotify-verifier'
 
@@ -55,6 +57,12 @@ function clientId() {
 }
 
 function redirectUri() {
+  const host = window.location.hostname
+  // Always use the canonical prod host so Spotify Dashboard only needs one URI
+  if (host === PRIMARY_HOST || host.endsWith('.vercel.app')) {
+    return `https://${PRIMARY_HOST}/`
+  }
+  // Local / LAN: exact current origin (must be listed in Spotify Dashboard)
   return `${window.location.origin}/`
 }
 
